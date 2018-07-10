@@ -1,0 +1,77 @@
+#include <xinu.h>
+#include <string.h>
+#include <stdio.h>
+
+/*------------------------------------------------------------------------
+ * xsh_producer_consumer - example of producer consumer implementation
+ *------------------------------------------------------------------------
+ */
+
+
+void print_help() {
+  printf("producer-consumer <buffer size in bytes> <bytes to send> <max delay>\n");
+}
+
+process producer(	sid32 mutex,
+					sid32 items,
+					sid32 spaces,
+					sid32 don_sem,
+					volatile int32 *event) {
+
+	int32 bytes_produced = 0;
+	while (bytes_produced != total_bytes) {
+		// event = waitForEvent()
+		wait(spaces);
+		wait(mutex);
+			// buffer.add(event)
+		signal(mutex);
+		signal(items);
+	}
+	signal(done_sem);
+	return OK;
+}
+
+process consumer(	sid32 mutex,
+					sid32 items,
+					sid32 spaces,
+					sid32 don_sem,
+					volatile int32 *event) {
+
+	int32 bytes_consumed = 0;
+	while (bytes_consumed != total_bytes) {
+		wait(items)
+		wait(mutex)
+			//event = buffer.get()
+		signal(mutex)
+		signal(spaces)
+		// event.process()
+	}
+	signal(done_sem);
+	return OK;
+}
+
+shellcmd xsh_producer_consumer(int nargs, char *args[]) {
+	// Check for valid arguments
+	printf("%d\n",nargs);
+	if (nargs < 3) {
+		return 1;
+	}
+
+	int32 buffersize = atoi(args[2]);
+
+	// Create semaphores to be used
+	sid32 mutex = semcreate(1);
+	sid32 items = semcreate(0);
+	sid32 done_sem = semcreate(0);
+	sid32 spaces = semcreate(buffersize);
+	int32 event = 0;
+	resume(create(producer, 1024, 20, "producer", 5, mutex, items, spaces, done_sem, &event));
+  	resume(create(consumer, 1024, 20, "consumer", 5, mutex, items, spaces, done_sem, &event));
+  	wait(done_sem);
+  	wait(done_sem);
+  	semdelete(mutex);
+  	semdelete(items);
+  	semdelete(spaces);
+  	return SHELL_OK;
+}
+
